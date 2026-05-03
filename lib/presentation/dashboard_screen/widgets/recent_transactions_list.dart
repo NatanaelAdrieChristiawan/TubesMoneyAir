@@ -11,11 +11,11 @@ class RecentTransactionsList extends StatelessWidget {
   final VoidCallback onRefresh;
 
   const RecentTransactionsList({
-    Key? key,
+    super.key,
     required this.transactions,
     required this.onDeleteTransaction,
     required this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +101,7 @@ class RecentTransactionsList extends StatelessWidget {
                 width: 10.w,
                 height: 10.w,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
@@ -135,7 +135,7 @@ class RecentTransactionsList extends StatelessWidget {
               ),
               SizedBox(width: 2.w),
               Text(
-                '$amountPrefix ${formattedAmount}',
+                '$amountPrefix $formattedAmount',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: amountColor,
                   fontWeight: FontWeight.w700,

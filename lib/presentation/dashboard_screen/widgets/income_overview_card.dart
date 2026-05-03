@@ -8,10 +8,10 @@ class IncomeOverviewCard extends StatefulWidget {
   final String currentMonth;
 
   const IncomeOverviewCard({
-    Key? key,
+    super.key,
     required this.totalIncome,
     required this.currentMonth,
-  }) : super(key: key);
+  });
 
   @override
   State<IncomeOverviewCard> createState() => _IncomeOverviewCardState();

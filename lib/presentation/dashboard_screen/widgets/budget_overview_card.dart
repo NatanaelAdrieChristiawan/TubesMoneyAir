@@ -9,11 +9,11 @@ class BudgetOverviewCard extends StatefulWidget {
   final String currentMonth;
 
   const BudgetOverviewCard({
-    Key? key,
+    super.key,
     required this.currentSpending,
     required this.monthlyBudget,
     required this.currentMonth,
-  }) : super(key: key);
+  });
 
   @override
   State<BudgetOverviewCard> createState() => _BudgetOverviewCardState();

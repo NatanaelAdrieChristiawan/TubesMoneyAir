@@ -5,7 +5,7 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
             end: Alignment.bottomCenter,
             colors: [
               theme.primaryColor,
-              theme.primaryColor.withOpacity(0.8),
+              theme.primaryColor.withValues(alpha: 0.8),
               theme.colorScheme.primaryContainer,
             ],
             stops: const [0.0, 0.6, 1.0],
@@ -145,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
                               SvgPicture.asset(
                                 'assets/images/wallet.svg',
                                 width: 30.w,
-                                color: Colors.white,
+                                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                               ),
                               SizedBox(height: 3.h),
                               // App Name
@@ -164,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen>
                               Text(
                                 'Kelola Keuangan dengan Mudah',
                                 style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                   fontWeight: FontWeight.w400,
                                 ),
                                 textAlign: TextAlign.center,
@@ -197,7 +197,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 child: CircularProgressIndicator(
                                   strokeWidth: 3,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white.withOpacity(0.8),
+                                    Colors.white.withValues(alpha: 0.8),
                                   ),
                                 ),
                               ),
@@ -208,7 +208,7 @@ class _SplashScreenState extends State<SplashScreen>
                                     ? 'Siap digunakan!'
                                     : 'Memuat aplikasi...',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
@@ -231,7 +231,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Text(
                         'Versi 1.1.0',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 10.sp,
                         ),
                       ),

@@ -9,11 +9,11 @@ class DashboardHeader extends StatelessWidget {
   final VoidCallback onProfileTap;
 
   const DashboardHeader({
-    Key? key,
+    super.key,
     required this.userName,
     this.profileImageUrl,
     required this.onProfileTap,
-  }) : super(key: key);
+  });
 
   String _getGreeting() {
     final hour = DateTime.now().hour;

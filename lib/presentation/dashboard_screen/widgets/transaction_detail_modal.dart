@@ -10,11 +10,11 @@ class TransactionDetailModal extends StatelessWidget {
   final VoidCallback onUpdated;
 
   const TransactionDetailModal({
-    Key? key,
+    super.key,
     required this.transaction,
     required this.onDelete,
     required this.onUpdated,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +59,7 @@ class TransactionDetailModal extends StatelessWidget {
                     height: 12.w,
                     decoration: BoxDecoration(
                       color:
-                          theme.colorScheme.primaryContainer.withOpacity(0.5),
+                          theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(

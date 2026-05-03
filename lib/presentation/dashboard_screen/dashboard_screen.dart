@@ -14,7 +14,7 @@ import './widgets/recent_transactions_list.dart';
 
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -202,11 +202,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _navigateToAddTransaction() {
-    // Add Transaction screen not available in this version
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur tambah transaksi akan tersedia di versi selanjutnya')),
-    );
+  void _navigateToAddTransaction() async {
+    await Navigator.pushNamed(context, AppRoutes.addTransaction);
+    if (!mounted) return;
+    await _loadDashboardData();
   }
 
   String _getCurrentMonth() {
