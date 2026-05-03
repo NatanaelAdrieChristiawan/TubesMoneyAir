@@ -1,12 +1,23 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../core/theme_controller.dart';
 import '../../data/models/budget_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/local_storage_service.dart';
+import '../../data/models/transaction_model.dart' as t_model;
+import '../../data/services/pdf_export_service.dart';
 import './widgets/budget_dialog_widget.dart';
 import './widgets/edit_username_dialog_widget.dart';
+import './widgets/image_picker_modal_widget.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/profile_section_widget.dart';
 
@@ -19,14 +30,18 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final LocalStorageService _localStorageService = LocalStorageService();
+  final ImagePicker _imagePicker = ImagePicker();
+  final ThemeController _themeController = ThemeController();
 
   User? _user;
   Budget? _budget;
   bool _isLoading = true;
+  bool _isUploading = false;
 
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('id_ID');
     _loadData();
   }
 
@@ -55,6 +70,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ===== FOTO PROFIL =====
+
+  Future<void> _handleImagePicker() async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ImagePickerModalWidget(
+        onCameraTap: () => _pickImage(ImageSource.camera),
+        onGalleryTap: () => _pickImage(ImageSource.gallery),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      if (!kIsWeb && source == ImageSource.camera) {
+        final permission = await Permission.camera.request();
+        if (!permission.isGranted) {
+          _showErrorSnackBar('Izin kamera diperlukan');
+          return;
+        }
+      }
+
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _updateProfileImage(image.path);
+      }
+    } catch (e) {
+      _showErrorSnackBar('Gagal memilih gambar');
+    }
+  }
+
+  Future<void> _updateProfileImage(String imagePath) async {
+    setState(() => _isUploading = true);
+
+    try {
+      final updatedUser = User(
+        username: _user!.username,
+        profilePicturePath: imagePath,
+      );
+      await _localStorageService.saveUser(updatedUser);
+
+      setState(() {
+        _user = updatedUser;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Foto profil berhasil diubah'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } catch (e) {
+      _showErrorSnackBar('Gagal menyimpan foto profil');
+    } finally {
+      setState(() => _isUploading = false);
+    }
+  }
+
+  // ===== EDIT USERNAME =====
+
   void _showEditUsernameDialog() {
     showDialog(
       context: context,
@@ -72,6 +156,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ===== BUDGET =====
+
   void _showBudgetDialog() {
     showDialog(
       context: context,
@@ -86,7 +172,219 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ===== MODE TAMPILAN =====
+
+  void _showThemeModeSheet() {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final current = _themeController.themeMode;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 1.h),
+              Container(
+                width: 12.w,
+                height: 0.4.h,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 1.h),
+              ListTile(
+                leading: Icon(Icons.wb_sunny_outlined,
+                    color: theme.colorScheme.onSurface),
+                title: Text('Terang',
+                    style: TextStyle(color: theme.colorScheme.onSurface)),
+                trailing: current == ThemeMode.light
+                    ? Icon(Icons.check, color: theme.colorScheme.primary)
+                    : null,
+                onTap: () async {
+                  await _themeController.setThemeMode(ThemeMode.light);
+                  if (mounted) {
+                    Navigator.of(ctx).pop();
+                    setState(() {});
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.nights_stay_outlined,
+                    color: theme.colorScheme.onSurface),
+                title: Text('Gelap',
+                    style: TextStyle(color: theme.colorScheme.onSurface)),
+                trailing: current == ThemeMode.dark
+                    ? Icon(Icons.check, color: theme.colorScheme.primary)
+                    : null,
+                onTap: () async {
+                  await _themeController.setThemeMode(ThemeMode.dark);
+                  if (mounted) {
+                    Navigator.of(ctx).pop();
+                    setState(() {});
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.brightness_auto,
+                    color: theme.colorScheme.onSurface),
+                title: Text('Sistem',
+                    style: TextStyle(color: theme.colorScheme.onSurface)),
+                trailing: current == ThemeMode.system
+                    ? Icon(Icons.check, color: theme.colorScheme.primary)
+                    : null,
+                onTap: () async {
+                  await _themeController.setThemeMode(ThemeMode.system);
+                  if (mounted) {
+                    Navigator.of(ctx).pop();
+                    setState(() {});
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ===== EKSPOR PDF =====
+
+  void _showExportPeriodSheet() {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final periods = ['Harian', 'Mingguan', 'Bulanan', 'Tahunan', 'Semua'];
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 1.h),
+              Container(
+                width: 12.w,
+                height: 0.4.h,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 1.h),
+              for (final p in periods)
+                ListTile(
+                  leading: CustomIconWidget(
+                    iconName: p == 'Harian'
+                        ? 'today'
+                        : p == 'Mingguan'
+                            ? 'date_range'
+                            : p == 'Bulanan'
+                                ? 'event'
+                                : p == 'Tahunan'
+                                    ? 'calendar_month'
+                                    : 'all_inbox',
+                    color: theme.colorScheme.onSurface,
+                    size: 6.w,
+                  ),
+                  title: Text(p,
+                      style: TextStyle(color: theme.colorScheme.onSurface)),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    await _exportPdfForPeriod(p);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportPdfForPeriod(String period) async {
+    try {
+      final txs = await _localStorageService.getTransactions();
+      final expenses = _filterExpensesForPeriod(txs, period);
+      if (expenses.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Tidak ada pengeluaran untuk diekspor')),
+        );
+        return;
+      }
+      final label = _buildPeriodLabelForPeriod(period);
+      final service = PdfExportService();
+      await service.shareExpensesPdf(expenses: expenses, periodLabel: label);
+    } catch (e) {
+      _showErrorSnackBar('Gagal mengekspor PDF: $e');
+    }
+  }
+
+  List<t_model.Transaction> _filterExpensesForPeriod(
+      List<t_model.Transaction> all, String period) {
+    final now = DateTime.now();
+    final expenses = all.where((t) => t.type == 'expense');
+    switch (period) {
+      case 'Harian':
+        return expenses.where((t) => _isSameDay(t.date, now)).toList();
+      case 'Mingguan':
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        return expenses
+            .where((t) =>
+                t.date.isAfter(
+                    startOfWeek.subtract(const Duration(days: 1))) &&
+                t.date.isBefore(endOfWeek.add(const Duration(days: 1))))
+            .toList();
+      case 'Bulanan':
+        return expenses
+            .where((t) =>
+                t.date.month == now.month && t.date.year == now.year)
+            .toList();
+      case 'Tahunan':
+        return expenses.where((t) => t.date.year == now.year).toList();
+      case 'Semua':
+      default:
+        return expenses.toList();
+    }
+  }
+
+  String _buildPeriodLabelForPeriod(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'Harian':
+        return DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(now);
+      case 'Mingguan':
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        return '${DateFormat('d MMM', 'id_ID').format(startOfWeek)} - ${DateFormat('d MMM yyyy', 'id_ID').format(endOfWeek)}';
+      case 'Bulanan':
+        return DateFormat('MMMM yyyy', 'id_ID').format(now);
+      case 'Tahunan':
+        return DateFormat('yyyy').format(now);
+      case 'Semua':
+      default:
+        return 'Semua Waktu';
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  // ===== HELPERS =====
+
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -102,6 +400,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           (Match m) => '${m[1]}.',
         )}';
   }
+
+  String _getThemeLabel() {
+    switch (_themeController.themeMode) {
+      case ThemeMode.light:
+        return 'Terang';
+      case ThemeMode.dark:
+        return 'Gelap';
+      case ThemeMode.system:
+        return 'Ikuti Sistem';
+    }
+  }
+
+  // ===== BUILD =====
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildProfileHeader(),
           SizedBox(height: 2.h),
           _buildSettingsSection(),
+          _buildDataSection(),
           SizedBox(height: 4.h),
         ],
       ),
@@ -151,9 +463,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    return ProfileHeaderWidget(
-      userName: _user?.username ?? 'N/A',
-      onEditUserName: _showEditUsernameDialog,
+    return Stack(
+      children: [
+        ProfileHeaderWidget(
+          profileImageUrl: _user?.profilePicturePath ?? '',
+          userName: _user?.username ?? 'N/A',
+          onImageTap: _handleImagePicker,
+          onEditUserName: _showEditUsernameDialog,
+        ),
+        if (_isUploading)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.4),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -162,10 +489,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: 'Pengaturan',
       items: [
         ProfileMenuItem(
+          icon: 'dark_mode',
+          title: 'Mode Tampilan',
+          subtitle: _getThemeLabel(),
+          onTap: _showThemeModeSheet,
+        ),
+        ProfileMenuItem(
           icon: 'account_balance_wallet',
           title: 'Budget Bulanan',
           subtitle: _formatCurrency(_budget?.amount ?? 0.0),
           onTap: _showBudgetDialog,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDataSection() {
+    return ProfileSectionWidget(
+      title: 'Data',
+      items: [
+        ProfileMenuItem(
+          icon: 'file_download',
+          title: 'Ekspor Transaksi',
+          subtitle: 'Download data transaksi',
+          onTap: _showExportPeriodSheet,
         ),
       ],
     );

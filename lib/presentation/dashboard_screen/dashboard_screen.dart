@@ -80,19 +80,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: _isLoading ? _buildLoadingIndicator() : _buildDashboardContent(),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) _navigateToReports();
+          if (index == 2) _navigateToProfile();
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_outlined),
+            activeIcon: Icon(Icons.bar_chart),
+            label: 'Laporan',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddTransaction,
-        icon: CustomIconWidget(
+        child: CustomIconWidget(
           iconName: 'add',
           size: 6.w,
           color: theme.colorScheme.onPrimary,
-        ),
-        label: Text(
-          'Tambah',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.onPrimary,
-            fontWeight: FontWeight.w600,
-          ),
         ),
       ),
     );
@@ -197,6 +214,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _navigateToProfile() async {
     await Navigator.pushNamed(context, AppRoutes.profile);
+    if (!mounted) return;
+    await _loadDashboardData();
+  }
+
+  void _navigateToReports() async {
+    await Navigator.pushNamed(context, AppRoutes.reports);
     if (!mounted) return;
     await _loadDashboardData();
   }
