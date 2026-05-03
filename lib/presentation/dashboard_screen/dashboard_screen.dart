@@ -195,11 +195,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _navigateToProfile() {
-    // Profile screen not available in this version
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur profil akan tersedia di versi selanjutnya')),
-    );
+  void _navigateToProfile() async {
+    await Navigator.pushNamed(context, AppRoutes.profile);
+    if (!mounted) return;
+    await _loadDashboardData();
   }
 
   void _navigateToAddTransaction() async {
