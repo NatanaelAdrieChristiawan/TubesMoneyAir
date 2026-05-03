@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../data/models/transaction_model.dart' as t_model;
+import '../../data/services/local_storage_service.dart';
 import './widgets/amount_input_widget.dart';
+import './widgets/category_selection_widget.dart';
+import './widgets/date_picker_widget.dart';
+import './widgets/notes_input_widget.dart';
 import './widgets/transaction_type_toggle_widget.dart';
+import './widgets/wallet_selector_widget.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({Key? key}) : super(key: key);
@@ -16,9 +22,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
+  final _notesController = TextEditingController();
+  final _localStorageService = LocalStorageService();
 
   TransactionType _selectedType = TransactionType.expense;
+  String? _selectedCategory;
+  DateTime _selectedDate = DateTime.now();
+  String _selectedWallet = 'Cash';
   String? _amountError;
+  String? _categoryError;
+  String? _notesError;
+  bool _isLoading = false;
+  bool _hasAttemptedSubmit = false;
 
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
@@ -55,6 +70,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   void dispose() {
     _animationController.dispose();
     _amountController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -65,6 +81,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       body: AnimatedBuilder(
         animation: _animationController,
         builder: (context, child) {
+          final mediaQuery = MediaQuery.of(context);
           return Transform.translate(
             offset: Offset(0, _slideAnimation.value * 100.h),
             child: Opacity(
@@ -86,6 +103,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                       _buildHeader(),
                       Expanded(
                         child: _buildForm(),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: mediaQuery.padding.bottom,
+                        ),
+                        child: _buildSaveButton(),
                       ),
                     ],
                   ),
@@ -168,12 +191,72 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
               onTypeChanged: _onTypeChanged,
             ),
             SizedBox(height: 3.h),
-            // TODO: Implementasi pemilihan kategori
-            // TODO: Implementasi pemilihan tanggal
-            // TODO: Implementasi input catatan
-            // TODO: Implementasi pemilihan dompet
-            // TODO: Implementasi tombol simpan
+            CategorySelectionWidget(
+              selectedCategory: _selectedCategory,
+              onCategorySelected: _onCategorySelected,
+              transactionType: _selectedType,
+              errorText: _categoryError,
+            ),
+            SizedBox(height: 3.h),
+            DatePickerWidget(
+              selectedDate: _selectedDate,
+              onDateSelected: _onDateSelected,
+            ),
+            SizedBox(height: 3.h),
+            NotesInputWidget(
+              controller: _notesController,
+              onChanged: _onNotesChanged,
+              errorText: _notesError,
+            ),
+            SizedBox(height: 3.h),
+            WalletSelectorWidget(
+              selectedWallet: _selectedWallet,
+              onWalletSelected: _onWalletSelected,
+            ),
+            SizedBox(height: 4.h),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: EdgeInsets.all(4.w),
+      child: SizedBox(
+        width: double.infinity,
+        height: 6.h,
+        child: ElevatedButton(
+          onPressed: _isLoading ? null : _saveTransaction,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _isFormValid() && !_isLoading
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: _isLoading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                )
+              : Text(
+                  'Simpan',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
         ),
       ),
     );
@@ -183,13 +266,42 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     setState(() {
       _amountError = null;
     });
-    _validateAmount(value);
+    if (_hasAttemptedSubmit) {
+      _validateAmount(value);
+    }
   }
 
   void _onTypeChanged(TransactionType type) {
     setState(() {
       _selectedType = type;
+      _selectedCategory = null; // Reset category when type changes
+      _categoryError = null;
     });
+  }
+
+  void _onCategorySelected(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _categoryError = null;
+    });
+  }
+
+  void _onDateSelected(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+    });
+  }
+
+  void _onWalletSelected(String wallet) {
+    setState(() {
+      _selectedWallet = wallet;
+    });
+  }
+
+  void _onNotesChanged(String value) {
+    if (_hasAttemptedSubmit || value.length > 100) {
+      _validateNotes(value);
+    }
   }
 
   void _validateAmount(String value) {
@@ -210,13 +322,192 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       return;
     }
 
+    if (amount > 999999999999) {
+      setState(() {
+        _amountError = 'Jumlah terlalu besar (maks 999.999.999.999)';
+      });
+      return;
+    }
+
     setState(() {
       _amountError = null;
     });
   }
 
+  void _validateCategory() {
+    if (_selectedCategory == null) {
+      setState(() {
+        _categoryError = 'Pilih kategori terlebih dahulu';
+      });
+    } else {
+      setState(() {
+        _categoryError = null;
+      });
+    }
+  }
+
+  void _validateNotes(String value) {
+    if (value.length > 100) {
+      setState(() {
+        _notesError = 'Catatan maksimal 100 karakter (${value.length}/100)';
+      });
+    } else {
+      setState(() {
+        _notesError = null;
+      });
+    }
+  }
+
+  bool _isFormValid() {
+    return _amountController.text.isNotEmpty &&
+        _amountError == null &&
+        _selectedCategory != null &&
+        _categoryError == null &&
+        _notesError == null;
+  }
+
+  /// Validates all fields and returns true if all pass
+  bool _validateAll() {
+    _validateAmount(_amountController.text);
+    _validateCategory();
+    _validateNotes(_notesController.text);
+    return _amountError == null &&
+        _amountController.text.isNotEmpty &&
+        _selectedCategory != null &&
+        _categoryError == null &&
+        _notesError == null;
+  }
+
+  Future<void> _saveTransaction() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+
+    if (!_validateAll()) {
+      // Show a summary snackbar for accessibility
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                CustomIconWidget(
+                  iconName: 'warning',
+                  color: Colors.white,
+                  size: 20,
+                ),
+                SizedBox(width: 2.w),
+                Expanded(
+                  child: Text(
+                    'Mohon perbaiki data yang belum sesuai',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final transaction = t_model.Transaction(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        amount: double.parse(_amountController.text.replaceAll('.', '')),
+        type: _selectedType == TransactionType.expense ? 'expense' : 'income',
+        category: _selectedCategory!,
+        date: _selectedDate,
+        notes: _notesController.text.trim(),
+        wallet: _selectedWallet,
+      );
+
+      await _localStorageService.addTransaction(transaction);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                CustomIconWidget(
+                  iconName: 'check_circle',
+                  color: Colors.white,
+                  size: 20,
+                ),
+                SizedBox(width: 2.w),
+                Text(
+                  'Transaksi berhasil disimpan',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.getSuccessColor(
+              Theme.of(context).brightness == Brightness.light,
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+
+        await _animationController.reverse();
+        Navigator.pop(context, true); // Return true to indicate success
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                CustomIconWidget(
+                  iconName: 'error',
+                  color: Colors.white,
+                  size: 20,
+                ),
+                SizedBox(width: 2.w),
+                Text(
+                  'Gagal menyimpan transaksi. Coba lagi.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                ),
+              ],
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _handleClose() async {
-    if (_amountController.text.isNotEmpty) {
+    if (_amountController.text.isNotEmpty ||
+        _selectedCategory != null ||
+        _notesController.text.isNotEmpty) {
       final shouldClose = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(

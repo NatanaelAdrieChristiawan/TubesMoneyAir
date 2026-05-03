@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -142,10 +141,9 @@ class _SplashScreenState extends State<SplashScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // App Logo
-                              SvgPicture.asset(
-                                'assets/images/wallet.svg',
+                              Image.asset(
+                                'assets/images/wallet.png',
                                 width: 30.w,
-                                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                               ),
                               SizedBox(height: 3.h),
                               // App Name
