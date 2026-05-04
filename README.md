@@ -69,7 +69,7 @@
 
 | Dashboard | Tambah Transaksi | Laporan | Profil |
 |:---------:|:----------------:|:-------:|:------:|
-| *Dashboard* | *Form Transaksi* | *Laporan* | *Profil* |
+| <img src="assets/Screenshot/dashboard.png" width="200" /> | <img src="assets/Screenshot/TambahTransaksi.png" width="200" /> | <img src="assets/Screenshot/Laporan.png" width="200" /> | <img src="assets/Screenshot/Profil.png" width="200" /> |
 
 ---
 
@@ -78,18 +78,12 @@
 ### Opsi 1: Download APK (Pengguna)
 
 1. Kunjungi halaman [**Releases**](../../releases) pada repositori ini
-2. Download file `app-arm64-v8a-release.apk` (untuk sebagian besar perangkat Android modern)
+2. Download file `MoneyAir.apk` (untuk sebagian besar perangkat Android modern)
 3. Buka file APK pada perangkat Android Anda
 4. Jika diminta, aktifkan **"Izinkan instalasi dari sumber tidak dikenal"** di pengaturan
 5. Ikuti proses instalasi hingga selesai
 6. Buka aplikasi **MoneyAir** dan mulai catat keuangan Anda! 🎉
 
-> **Catatan:** Pilih file APK sesuai arsitektur perangkat Anda:
-> | File APK | Arsitektur | Keterangan |
-> |---|---|---|
-> | `app-arm64-v8a-release.apk` | ARM 64-bit | **Direkomendasikan** — mayoritas HP Android modern |
-> | `app-armeabi-v7a-release.apk` | ARM 32-bit | Untuk HP Android lama |
-> | `app-x86_64-release.apk` | x86 64-bit | Untuk emulator/Chromebook |
 
 ### Opsi 2: Build dari Source Code (Developer)
 
@@ -207,20 +201,6 @@ lib/
 3. Ketuk ikon ✏️ di samping nama untuk mengedit nama
 4. Atur **Mode Tampilan** (Terang/Gelap/Sistem)
 5. Atur **Budget Bulanan** sesuai kebutuhan
-
----
-
-## 🤝 Kontribusi
-
-Kontribusi sangat diterima! Jika Anda ingin berkontribusi:
-
-1. Fork repositori ini
-2. Buat branch fitur baru (`git checkout -b fitur/FiturBaru`)
-3. Commit perubahan (`git commit -m 'Menambahkan fitur baru'`)
-4. Push ke branch (`git push origin fitur/FiturBaru`)
-5. Buat Pull Request
-
----
 
 ## 📬 Kritik & Saran
 
