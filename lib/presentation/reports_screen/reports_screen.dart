@@ -3,10 +3,14 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../core/animations.dart';
+
 import '../../core/app_export.dart';
 import '../../data/models/transaction_model.dart' as t_model;
 import '../../data/services/database_service.dart';
+import '../../data/services/local_storage_service.dart';
 import '../../data/services/pdf_export_service.dart';
+import '../dashboard_screen/widgets/transaction_detail_modal.dart';
 import 'widgets/expense_pie_chart_widget.dart';
 import 'widgets/period_filter_widget.dart';
 import 'widgets/top_categories_widget.dart';
@@ -21,6 +25,7 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen>
     with SingleTickerProviderStateMixin {
   final DatabaseService _db = DatabaseService.instance;
+  final LocalStorageService _localStorageService = LocalStorageService();
 
   String _selectedPeriod = 'Harian';
   DateTime _currentDate = DateTime.now();
@@ -38,7 +43,7 @@ class _ReportsScreenState extends State<ReportsScreen>
     super.initState();
     initializeDateFormatting('id_ID');
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 350),
       vsync: this,
     );
     _loadReportData();
@@ -249,25 +254,31 @@ class _ReportsScreenState extends State<ReportsScreen>
                     ),
                     SizedBox(height: 1.h),
                     // Summary card
-                    FadeTransition(
-                      opacity: _animationController,
-                      child: _buildSummaryCard(theme, formatter),
+                    AnimateIn(
+                      delay: const Duration(milliseconds: 100),
+                      child: FadeTransition(
+                        opacity: _animationController,
+                        child: _buildSummaryCard(theme, formatter),
+                      ),
                     ),
                     SizedBox(height: 1.h),
                     // Charts
                     if (_categoryData.isNotEmpty) ...[
-                      FadeTransition(
-                        opacity: _animationController,
-                        child: Column(
-                          children: [
-                            ExpensePieChartWidget(
-                              expenseData: _categoryData,
-                              periodLabel: _getPeriodLabel(),
-                            ),
-                            TopCategoriesWidget(
-                              categoriesData: _categoryData,
-                            ),
-                          ],
+                      AnimateIn(
+                        delay: const Duration(milliseconds: 200),
+                        child: FadeTransition(
+                          opacity: _animationController,
+                          child: Column(
+                            children: [
+                              ExpensePieChartWidget(
+                                expenseData: _categoryData,
+                                periodLabel: _getPeriodLabel(),
+                              ),
+                              TopCategoriesWidget(
+                                categoriesData: _categoryData,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -397,11 +408,48 @@ class _ReportsScreenState extends State<ReportsScreen>
                 transactions: dayTxs,
                 theme: theme,
                 formatter: formatter,
+                onTransactionTap: _showTransactionDetail,
               ),
             ],
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _showTransactionDetail(t_model.Transaction t) {
+    final map = {
+      'id': t.id,
+      'amount': t.amount,
+      'type': t.type,
+      'category': t.category,
+      'date': t.date,
+      'description': (t.notes.trim().isNotEmpty) ? t.notes.trim() : t.category,
+      'notes': t.notes,
+      'wallet': t.wallet,
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TransactionDetailModal(
+        transaction: map,
+        onDelete: () async {
+          await _localStorageService.deleteTransaction(t.id);
+          if (!mounted) return;
+          await _loadReportData();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Transaksi dihapus'),
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+            ),
+          );
+        },
+        onUpdated: () async {
+          await _loadReportData();
+        },
+      ),
     );
   }
 
@@ -482,6 +530,7 @@ class _DateGroupTile extends StatefulWidget {
   final List<t_model.Transaction> transactions;
   final ThemeData theme;
   final NumberFormat formatter;
+  final Function(t_model.Transaction)? onTransactionTap;
 
   const _DateGroupTile({
     required this.dateKey,
@@ -489,14 +538,37 @@ class _DateGroupTile extends StatefulWidget {
     required this.transactions,
     required this.theme,
     required this.formatter,
+    this.onTransactionTap,
   });
 
   @override
   State<_DateGroupTile> createState() => _DateGroupTileState();
 }
 
-class _DateGroupTileState extends State<_DateGroupTile> {
+class _DateGroupTileState extends State<_DateGroupTile>
+    with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
+  late AnimationController _expandController;
+  late Animation<double> _expandAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _expandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _expandAnimation = CurvedAnimation(
+      parent: _expandController,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _expandController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -520,7 +592,14 @@ class _DateGroupTileState extends State<_DateGroupTile> {
       child: Column(
         children: [
           InkWell(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            onTap: () {
+              setState(() => _isExpanded = !_isExpanded);
+              if (_isExpanded) {
+                _expandController.forward();
+              } else {
+                _expandController.reverse();
+              }
+            },
             borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding:
@@ -544,78 +623,91 @@ class _DateGroupTileState extends State<_DateGroupTile> {
                     ),
                   ),
                   SizedBox(width: 2.w),
-                  Icon(
-                    _isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 5.w,
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                        Icons.keyboard_arrow_down,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      size: 5.w,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          if (_isExpanded)
-            ...widget.transactions.map((t) => Column(
+          SizeTransition(
+            sizeFactor: _expandAnimation,
+            child: _buildExpandedContent(theme, formatter),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpandedContent(ThemeData theme, NumberFormat formatter) {
+    return Column(
+      children: widget.transactions.map((t) {
+        return Column(
+          children: [
+            const Divider(height: 1, thickness: 0.5),
+            InkWell(
+              onTap: () => widget.onTransactionTap?.call(t),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                child: Row(
                   children: [
-                    const Divider(height: 1, thickness: 0.5),
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 4.w, vertical: 1.h),
-                      child: Row(
+                    Container(
+                      width: 9.w,
+                      height: 9.w,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: CustomIconWidget(
+                        iconName: _getCategoryIcon(t.category),
+                        color: theme.colorScheme.error,
+                        size: 4.5.w,
+                      ),
+                    ),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 9.w,
-                            height: 9.w,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.error
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: CustomIconWidget(
-                              iconName: _getCategoryIcon(t.category),
-                              color: theme.colorScheme.error,
-                              size: 4.5.w,
-                            ),
-                          ),
-                          SizedBox(width: 3.w),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  t.category,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                if (t.notes.isNotEmpty)
-                                  Text(
-                                    t.notes,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            ),
-                          ),
                           Text(
-                            '- Rp ${formatter.format(t.amount)}',
+                            t.category,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (t.notes.isNotEmpty)
+                            Text(
+                              t.notes,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                         ],
                       ),
                     ),
+                    Text(
+                      '- Rp ${formatter.format(t.amount)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
-                )),
-        ],
-      ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 

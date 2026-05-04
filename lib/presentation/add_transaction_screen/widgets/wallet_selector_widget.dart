@@ -32,7 +32,9 @@ class WalletSelectorWidget extends StatelessWidget {
         SizedBox(height: 1.h),
         GestureDetector(
           onTap: () => _showWalletSelector(context),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
             width: double.infinity,
             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
             decoration: BoxDecoration(

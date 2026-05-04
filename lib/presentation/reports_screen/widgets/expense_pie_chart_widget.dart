@@ -97,11 +97,13 @@ class _ExpensePieChartWidgetState extends State<ExpensePieChartWidget> {
                         _handleTap(details.localPosition, context);
                       },
                       child: CustomPaint(
+                        size: Size.infinite,
                         painter: _PieChartPainter(
                           data: widget.expenseData,
                           colors: _colors,
                           touchedIndex: _touchedIndex,
                           total: total,
+                          surfaceColor: theme.colorScheme.surface,
                         ),
                       ),
                     ),
@@ -208,12 +210,14 @@ class _PieChartPainter extends CustomPainter {
   final List<Color> colors;
   final int touchedIndex;
   final double total;
+  final Color surfaceColor;
 
   _PieChartPainter({
     required this.data,
     required this.colors,
     required this.touchedIndex,
     required this.total,
+    required this.surfaceColor,
   });
 
   @override
@@ -271,7 +275,7 @@ class _PieChartPainter extends CustomPainter {
     canvas.drawCircle(
       center,
       baseRadius * holeRatio,
-      Paint()..color = Colors.white,
+      Paint()..color = surfaceColor,
     );
   }
 

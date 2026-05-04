@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../core/animations.dart';
 import '../../core/app_export.dart';
 import '../../data/models/budget_model.dart';
 import '../../data/models/transaction_model.dart' as t_model;
@@ -20,7 +21,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   final LocalStorageService _localStorageService = LocalStorageService();
   final DatabaseService _db = DatabaseService.instance;
 
@@ -31,10 +33,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _currentIncome = 0.0;
   bool _isLoading = true;
 
+  // Stagger animation controllers
+  late AnimationController _staggerController;
+  final int _itemCount = 5; // header, budget, income, transactions title, list
+
   @override
   void initState() {
     super.initState();
+    _initStagger();
     _loadDashboardData();
+  }
+
+  void _initStagger() {
+    const delayMs = 80;
+    final totalDuration = 400 + (_itemCount * delayMs);
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: totalDuration),
+    );
+  }
+
+  List<Animation<double>> _buildFadeAnimations() {
+    const delayMs = 80;
+    final totalDuration = 400 + (_itemCount * delayMs);
+    return List.generate(_itemCount, (i) {
+      final startFraction = (i * delayMs) / totalDuration;
+      final endFraction =
+          ((i * delayMs) + 400).clamp(0, totalDuration) / totalDuration;
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _staggerController,
+          curve: Interval(startFraction, endFraction, curve: Curves.easeOut),
+        ),
+      );
+    });
+  }
+
+  List<Animation<Offset>> _buildSlideAnimations() {
+    const delayMs = 80;
+    final totalDuration = 400 + (_itemCount * delayMs);
+    return List.generate(_itemCount, (i) {
+      final startFraction = (i * delayMs) / totalDuration;
+      final endFraction =
+          ((i * delayMs) + 400).clamp(0, totalDuration) / totalDuration;
+      return Tween<Offset>(
+        begin: const Offset(0, 0.04),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: _staggerController,
+          curve: Interval(startFraction, endFraction,
+              curve: Curves.easeOutCubic),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _staggerController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
@@ -68,6 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+        _staggerController.forward(from: 0.0);
       }
     }
   }
@@ -80,32 +139,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: _isLoading ? _buildLoadingIndicator() : _buildDashboardContent(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) _navigateToReports();
-          if (index == 2) _navigateToProfile();
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined),
-            activeIcon: Icon(Icons.bar_chart),
-            label: 'Laporan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddTransaction,
+      bottomNavigationBar: _buildBottomNavBar(),
+      floatingActionButton: _buildFAB(theme),
+    );
+  }
+
+  Widget _buildBottomNavBar() {
+    return BottomNavigationBar(
+      currentIndex: 0,
+      onTap: (index) {
+        if (index == 1) _navigateToReports();
+        if (index == 2) _navigateToProfile();
+      },
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_outlined),
+          activeIcon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.bar_chart_outlined),
+          activeIcon: Icon(Icons.bar_chart),
+          label: 'Laporan',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profil',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFAB(ThemeData theme) {
+    return TapBounce(
+      onTap: _navigateToAddTransaction,
+      child: FloatingActionButton(
+        onPressed: null, // Handled by TapBounce
+        heroTag: 'dashboard_fab',
         child: CustomIconWidget(
           iconName: 'add',
           size: 6.w,
@@ -123,6 +194,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           CircularProgressIndicator(
             color: theme.colorScheme.primary,
+            strokeWidth: 2.5,
           ),
           SizedBox(height: 2.h),
           Text(
@@ -137,62 +209,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
-    return RefreshIndicator(
-      onRefresh: _loadDashboardData,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            DashboardHeader(
-              userName: _user?.username ?? 'Pengguna',
-              profileImageUrl: _user?.profilePicturePath,
-              onProfileTap: _navigateToProfile,
-            ),
-            SizedBox(height: 1.h),
-            BudgetOverviewCard(
-              currentSpending: _currentSpending,
-              monthlyBudget: _budget?.amount ?? 0.0,
-              currentMonth: _getCurrentMonth(),
-            ),
-            SizedBox(height: 2.h),
-            if (_currentIncome > 0)
-              Padding(
-                padding: EdgeInsets.only(bottom: 2.h),
-                child: IncomeOverviewCard(
-                  totalIncome: _currentIncome,
-                  currentMonth: _getCurrentMonth(),
+    final fades = _buildFadeAnimations();
+    final slides = _buildSlideAnimations();
+
+    return AnimatedBuilder(
+      animation: _staggerController,
+      builder: (context, _) {
+        return RefreshIndicator(
+          onRefresh: _loadDashboardData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                // Header with stagger
+                _staggerWrap(0, fades, slides,
+                  DashboardHeader(
+                    userName: _user?.username ?? 'Pengguna',
+                    profileImageUrl: _user?.profilePicturePath,
+                    onProfileTap: _navigateToProfile,
+                  ),
                 ),
-              ),
-            RecentTransactionsList(
-              transactions: _transactions
-                  .take(8)
-                  .map((t) => {
-                        'id': t.id,
-                        'amount': t.amount,
-                        'type': t.type,
-                        'category': t.category,
-                        'date': t.date,
-                        // Use notes if present for better preview; fallback to category
-                        'description': (t.notes.trim().isNotEmpty)
-                            ? t.notes.trim()
-                            : t.category,
-                        'notes': t.notes,
-                        'wallet': t.wallet,
-                        'isRecurring': false,
-                      })
-                  .toList(),
-              onRefresh: _loadDashboardData,
-              onDeleteTransaction: _deleteTransaction,
+                SizedBox(height: 1.h),
+                // Budget card with stagger
+                _staggerWrap(1, fades, slides,
+                  BudgetOverviewCard(
+                    currentSpending: _currentSpending,
+                    monthlyBudget: _budget?.amount ?? 0.0,
+                    currentMonth: _getCurrentMonth(),
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                // Income card with stagger
+                if (_currentIncome > 0)
+                  _staggerWrap(2, fades, slides,
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 2.h),
+                      child: IncomeOverviewCard(
+                        totalIncome: _currentIncome,
+                        currentMonth: _getCurrentMonth(),
+                      ),
+                    ),
+                  ),
+                // Recent transactions with stagger
+                _staggerWrap(3, fades, slides,
+                  RecentTransactionsList(
+                    transactions: _transactions
+                        .take(8)
+                        .map((t) => {
+                              'id': t.id,
+                              'amount': t.amount,
+                              'type': t.type,
+                              'category': t.category,
+                              'date': t.date,
+                              // Use notes if present for better preview; fallback to category
+                              'description': (t.notes.trim().isNotEmpty)
+                                  ? t.notes.trim()
+                                  : t.category,
+                              'notes': t.notes,
+                              'wallet': t.wallet,
+                              'isRecurring': false,
+                            })
+                        .toList(),
+                    onRefresh: _loadDashboardData,
+                    onDeleteTransaction: _deleteTransaction,
+                  ),
+                ),
+                SizedBox(height: 10.h), // Space for FAB
+              ],
             ),
-            SizedBox(height: 10.h), // Space for FAB
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-
-
+  Widget _staggerWrap(
+    int index,
+    List<Animation<double>> fades,
+    List<Animation<Offset>> slides,
+    Widget child,
+  ) {
+    if (index >= fades.length) return child;
+    return SlideTransition(
+      position: slides[index],
+      child: FadeTransition(
+        opacity: fades[index],
+        child: child,
+      ),
+    );
+  }
 
   Future<void> _deleteTransaction(String transactionId) async {
     try {

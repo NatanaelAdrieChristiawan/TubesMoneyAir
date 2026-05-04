@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tubesmoneyair/core/page_transitions.dart';
 import 'package:tubesmoneyair/presentation/dashboard_screen/dashboard_screen.dart';
 import 'package:tubesmoneyair/presentation/splash_screen/splash_screen.dart';
 import 'package:tubesmoneyair/presentation/add_transaction_screen/add_transaction_screen.dart';
@@ -13,12 +14,26 @@ class AppRoutes {
   static const String profile = '/profile-screen';
   static const String reports = '/reports-screen';
 
+  /// Named routes fallback (used only for initial route)
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const SplashScreen(),
-    dashboard: (context) => const DashboardScreen(),
-    splash: (context) => const SplashScreen(),
-    addTransaction: (context) => const AddTransactionScreen(),
-    profile: (context) => const ProfileScreen(),
-    reports: (context) => const ReportsScreen(),
   };
+
+  /// Generate custom animated routes for every navigation
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case dashboard:
+        return FadeScaleRoute(page: const DashboardScreen());
+      case splash:
+        return FadeScaleRoute(page: const SplashScreen());
+      case addTransaction:
+        return SlideUpRoute(page: const AddTransactionScreen());
+      case profile:
+        return SlideRightRoute(page: const ProfileScreen());
+      case reports:
+        return SlideRightRoute(page: const ReportsScreen());
+      default:
+        return null;
+    }
+  }
 }

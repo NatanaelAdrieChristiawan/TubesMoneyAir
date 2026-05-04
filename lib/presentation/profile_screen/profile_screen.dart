@@ -8,6 +8,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../core/animations.dart';
+
 import '../../core/app_export.dart';
 import '../../core/theme_controller.dart';
 import '../../data/models/budget_model.dart';
@@ -452,10 +454,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          _buildProfileHeader(),
+          AnimateIn(
+            delay: const Duration(milliseconds: 50),
+            child: _buildProfileHeader(),
+          ),
           SizedBox(height: 2.h),
-          _buildSettingsSection(),
-          _buildDataSection(),
+          AnimateIn(
+            delay: const Duration(milliseconds: 150),
+            child: _buildSettingsSection(),
+          ),
+          AnimateIn(
+            delay: const Duration(milliseconds: 250),
+            child: _buildDataSection(),
+          ),
+          SizedBox(height: 4.h),
+          AnimateIn(
+            delay: const Duration(milliseconds: 350),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6.w),
+              child: Text(
+                'Jika ada kritik dan saran untuk MoneyAir bisa dikirim ke email natanaelac04@gmail.com, enjoy the app!',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ),
           SizedBox(height: 4.h),
         ],
       ),

@@ -68,6 +68,7 @@ class _MyAppState extends State<MyApp> {
             // 🚨 END CRITICAL SECTION
             debugShowCheckedModeBanner: false,
             routes: AppRoutes.routes,
+            onGenerateRoute: AppRoutes.onGenerateRoute,
             initialRoute: AppRoutes.initial,
           );
         },

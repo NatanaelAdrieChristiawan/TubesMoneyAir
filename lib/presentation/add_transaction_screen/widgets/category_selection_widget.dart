@@ -52,7 +52,7 @@ class CategorySelectionWidget extends StatelessWidget {
           ],
         ),
         SizedBox(height: 1.h),
-        Container(
+        SizedBox(
           height: 12.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
@@ -61,60 +61,15 @@ class CategorySelectionWidget extends StatelessWidget {
               final category = categories[index];
               final isSelected = selectedCategory == category['name'];
 
-              return GestureDetector(
+              return _CategoryChip(
+                name: category['name'] as String,
+                icon: category['icon'] as String,
+                isSelected: isSelected,
+                hasError: hasError,
                 onTap: () {
                   HapticFeedback.lightImpact();
                   onCategorySelected(category['name'] as String);
                 },
-                child: Container(
-                  width: 20.w,
-                  margin: EdgeInsets.only(right: 3.w),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 15.w,
-                        height: 7.h,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : hasError
-                                    ? theme.colorScheme.error.withValues(alpha: 0.5)
-                                    : theme.colorScheme.outline,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: CustomIconWidget(
-                            iconName: category['icon'] as String,
-                            color: isSelected
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.primary,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 1.h),
-                      Text(
-                        category['name'] as String,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w400,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
               );
             },
           ),
@@ -170,4 +125,130 @@ class CategorySelectionWidget extends StatelessWidget {
     {'name': 'Hadiah', 'icon': 'redeem'},
     {'name': 'Lainnya', 'icon': 'more_horiz'},
   ];
+}
+
+/// Individual category chip with animated selection state
+class _CategoryChip extends StatefulWidget {
+  final String name;
+  final String icon;
+  final bool isSelected;
+  final bool hasError;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.name,
+    required this.icon,
+    required this.isSelected,
+    required this.hasError,
+    required this.onTap,
+  });
+
+  @override
+  State<_CategoryChip> createState() => _CategoryChipState();
+}
+
+class _CategoryChipState extends State<_CategoryChip>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _tapController;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _tapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 120),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _tapController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tapController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTapDown: (_) => _tapController.forward(),
+      onTapUp: (_) {
+        _tapController.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _tapController.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: Container(
+          width: 20.w,
+          margin: EdgeInsets.only(right: 3.w),
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutCubic,
+                width: 15.w,
+                height: 7.h,
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: widget.isSelected
+                        ? theme.colorScheme.primary
+                        : widget.hasError
+                            ? theme.colorScheme.error.withValues(alpha: 0.5)
+                            : theme.colorScheme.outline,
+                    width: widget.isSelected ? 2.0 : 1.5,
+                  ),
+                  boxShadow: widget.isSelected
+                      ? [
+                          BoxShadow(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Center(
+                  child: CustomIconWidget(
+                    iconName: widget.icon,
+                    color: widget.isSelected
+                        ? theme.colorScheme.onPrimary
+                        : theme.colorScheme.primary,
+                    size: 24,
+                  ),
+                ),
+              ),
+              SizedBox(height: 1.h),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: widget.isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: widget.isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ) ??
+                    const TextStyle(),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                child: Text(widget.name),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

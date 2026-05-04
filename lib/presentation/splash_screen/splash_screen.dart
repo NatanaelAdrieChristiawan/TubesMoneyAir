@@ -14,6 +14,7 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
+  late AnimationController _exitController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   bool _isInitialized = false;
@@ -27,12 +28,17 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _initializeAnimations() {
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    );
+
+    _exitController = AnimationController(
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
 
@@ -41,31 +47,33 @@ class _SplashScreenState extends State<SplashScreen>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeInOut,
+      curve: Curves.easeOut,
     ));
 
     _scaleAnimation = Tween<double>(
-      begin: 0.8,
+      begin: 0.85,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _scaleController,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutBack,
     ));
   }
 
   Future<void> _startSplashSequence() async {
     // Start animations
     _fadeController.forward();
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 150));
     _scaleController.forward();
 
     // Simulate Firebase initialization and authentication check
     await _initializeApp();
 
     // Wait for minimum splash duration
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 1200));
 
     if (mounted) {
+      // Smooth exit fade
+      await _exitController.forward();
       _navigateToNextScreen();
     }
   }
@@ -73,13 +81,13 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _initializeApp() async {
     try {
       // Simulate Firebase initialization
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Simulate authentication status check
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // Simulate user preferences loading
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 200));
 
       setState(() {
         _isInitialized = true;
@@ -100,6 +108,7 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _fadeController.dispose();
     _scaleController.dispose();
+    _exitController.dispose();
     super.dispose();
   }
 
@@ -107,7 +116,9 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      body: Container(
+      body: FadeTransition(
+        opacity: ReverseAnimation(_exitController),
+        child: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
@@ -240,6 +251,7 @@ class _SplashScreenState extends State<SplashScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }

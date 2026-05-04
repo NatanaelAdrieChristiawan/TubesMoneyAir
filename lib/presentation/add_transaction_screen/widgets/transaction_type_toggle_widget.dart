@@ -41,89 +41,124 @@ class TransactionTypeToggleWidget extends StatelessWidget {
               width: 1,
             ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    onTypeChanged(TransactionType.expense);
-                  },
-                  child: Container(
-                    height: double.infinity,
-                    margin: EdgeInsets.all(0.5.h),
-                    decoration: BoxDecoration(
-                      color: selectedType == TransactionType.expense
-                          ? theme.colorScheme.error
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'trending_down',
-                          color: selectedType == TransactionType.expense
-                              ? theme.colorScheme.onError
-                              : theme.colorScheme.error,
-                          size: 20,
-                        ),
-                        SizedBox(width: 2.w),
-                        Text(
-                          'Pengeluaran',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: selectedType == TransactionType.expense
-                                ? theme.colorScheme.onError
-                                : theme.colorScheme.error,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final halfWidth = constraints.maxWidth / 2;
+              return Stack(
+                children: [
+                  // Animated sliding indicator
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    left: selectedType == TransactionType.expense
+                        ? 0.5.h
+                        : halfWidth,
+                    top: 0.5.h,
+                    bottom: 0.5.h,
+                    width: halfWidth - 0.5.h,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      decoration: BoxDecoration(
+                        color: selectedType == TransactionType.expense
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.secondary,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (selectedType == TransactionType.expense
+                                    ? theme.colorScheme.error
+                                    : theme.colorScheme.secondary)
+                                .withValues(alpha: 0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    onTypeChanged(TransactionType.income);
-                  },
-                  child: Container(
-                    height: double.infinity,
-                    margin: EdgeInsets.all(0.5.h),
-                    decoration: BoxDecoration(
-                      color: selectedType == TransactionType.income
-                          ? theme.colorScheme.secondary
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'trending_up',
-                          color: selectedType == TransactionType.income
-                              ? theme.colorScheme.onSecondary
-                              : theme.colorScheme.secondary,
-                          size: 20,
-                        ),
-                        SizedBox(width: 2.w),
-                        Text(
-                          'Pemasukan',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: selectedType == TransactionType.income
-                                ? theme.colorScheme.onSecondary
-                                : theme.colorScheme.secondary,
+                  // Tap targets
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            onTypeChanged(TransactionType.expense);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                CustomIconWidget(
+                                  iconName: 'trending_down',
+                                  color: selectedType == TransactionType.expense
+                                      ? theme.colorScheme.onError
+                                      : theme.colorScheme.error,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 2.w),
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 200),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: selectedType ==
+                                                TransactionType.expense
+                                            ? theme.colorScheme.onError
+                                            : theme.colorScheme.error,
+                                      ) ??
+                                      const TextStyle(),
+                                  child: const Text('Pengeluaran'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            onTypeChanged(TransactionType.income);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                CustomIconWidget(
+                                  iconName: 'trending_up',
+                                  color: selectedType == TransactionType.income
+                                      ? theme.colorScheme.onSecondary
+                                      : theme.colorScheme.secondary,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 2.w),
+                                AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 200),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: selectedType ==
+                                                TransactionType.income
+                                            ? theme.colorScheme.onSecondary
+                                            : theme.colorScheme.secondary,
+                                      ) ??
+                                      const TextStyle(),
+                                  child: const Text('Pemasukan'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       ],

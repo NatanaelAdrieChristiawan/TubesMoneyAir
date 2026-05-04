@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../core/animations.dart';
 import '../../core/app_export.dart';
 import '../../data/models/transaction_model.dart' as t_model;
 import '../../data/services/local_storage_service.dart';
@@ -12,14 +14,16 @@ import './widgets/transaction_type_toggle_widget.dart';
 import './widgets/wallet_selector_widget.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({Key? key}) : super(key: key);
+  final t_model.Transaction? initialTransaction;
+
+  const AddTransactionScreen({Key? key, this.initialTransaction}) : super(key: key);
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
@@ -38,6 +42,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
+
+  // Stagger animation for form fields
+  late AnimationController _staggerController;
+  static const int _fieldCount = 6;
 
   @override
   void initState() {
@@ -63,12 +71,81 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       curve: Curves.easeOut,
     ));
 
+    // Stagger for form fields
+    const delayMs = 60;
+    final totalDuration = 350 + (_fieldCount * delayMs);
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: totalDuration),
+    );
+
     _animationController.forward();
+    // Start stagger after main slide-in
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _staggerController.forward();
+    });
+
+    if (widget.initialTransaction != null) {
+      final t = widget.initialTransaction!;
+      _amountController.text = NumberFormat('#,##0', 'id_ID').format(t.amount);
+      _selectedType = t.type == 'expense' ? TransactionType.expense : TransactionType.income;
+      _selectedCategory = t.category;
+      _selectedDate = t.date;
+      _selectedWallet = t.wallet;
+      _notesController.text = t.notes;
+    }
+  }
+
+  List<Animation<double>> get _fieldFades {
+    const delayMs = 60;
+    final totalDuration = 350 + (_fieldCount * delayMs);
+    return List.generate(_fieldCount, (i) {
+      final start = (i * delayMs) / totalDuration;
+      final end = ((i * delayMs) + 350).clamp(0, totalDuration) / totalDuration;
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _staggerController,
+          curve: Interval(start, end, curve: Curves.easeOut),
+        ),
+      );
+    });
+  }
+
+  List<Animation<Offset>> get _fieldSlides {
+    const delayMs = 60;
+    final totalDuration = 350 + (_fieldCount * delayMs);
+    return List.generate(_fieldCount, (i) {
+      final start = (i * delayMs) / totalDuration;
+      final end = ((i * delayMs) + 350).clamp(0, totalDuration) / totalDuration;
+      return Tween<Offset>(
+        begin: const Offset(0, 0.05),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: _staggerController,
+          curve: Interval(start, end, curve: Curves.easeOutCubic),
+        ),
+      );
+    });
+  }
+
+  Widget _fieldStagger(int index, Widget child) {
+    final fades = _fieldFades;
+    final slides = _fieldSlides;
+    if (index >= fades.length) return child;
+    return SlideTransition(
+      position: slides[index],
+      child: FadeTransition(
+        opacity: fades[index],
+        child: child,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _staggerController.dispose();
     _amountController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -95,8 +172,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                       const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: SafeArea(
-                  top: false,
-                  bottom: false,
                   child: Column(
                     children: [
                       _buildDragHandle(),
@@ -139,7 +214,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       child: Row(
         children: [
-          GestureDetector(
+          TapBounce(
             onTap: _handleClose,
             child: Container(
               padding: EdgeInsets.all(2.w),
@@ -160,7 +235,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           ),
           SizedBox(width: 4.w),
           Text(
-            'Tambah Transaksi',
+            widget.initialTransaction != null ? 'Ubah Transaksi' : 'Tambah Transaksi',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
@@ -174,89 +249,104 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   Widget _buildForm() {
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 4.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 2.h),
-            AmountInputWidget(
-              controller: _amountController,
-              onChanged: _onAmountChanged,
-              errorText: _amountError,
+      child: AnimatedBuilder(
+        animation: _staggerController,
+        builder: (context, _) {
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 2.h),
+                _fieldStagger(0, AmountInputWidget(
+                  controller: _amountController,
+                  onChanged: _onAmountChanged,
+                  errorText: _amountError,
+                )),
+                SizedBox(height: 3.h),
+                _fieldStagger(1, TransactionTypeToggleWidget(
+                  selectedType: _selectedType,
+                  onTypeChanged: _onTypeChanged,
+                )),
+                SizedBox(height: 3.h),
+                _fieldStagger(2, CategorySelectionWidget(
+                  selectedCategory: _selectedCategory,
+                  onCategorySelected: _onCategorySelected,
+                  transactionType: _selectedType,
+                  errorText: _categoryError,
+                )),
+                SizedBox(height: 3.h),
+                _fieldStagger(3, DatePickerWidget(
+                  selectedDate: _selectedDate,
+                  onDateSelected: _onDateSelected,
+                )),
+                SizedBox(height: 3.h),
+                _fieldStagger(4, NotesInputWidget(
+                  controller: _notesController,
+                  onChanged: _onNotesChanged,
+                  errorText: _notesError,
+                )),
+                SizedBox(height: 3.h),
+                _fieldStagger(5, WalletSelectorWidget(
+                  selectedWallet: _selectedWallet,
+                  onWalletSelected: _onWalletSelected,
+                )),
+                SizedBox(height: 4.h),
+              ],
             ),
-            SizedBox(height: 3.h),
-            TransactionTypeToggleWidget(
-              selectedType: _selectedType,
-              onTypeChanged: _onTypeChanged,
-            ),
-            SizedBox(height: 3.h),
-            CategorySelectionWidget(
-              selectedCategory: _selectedCategory,
-              onCategorySelected: _onCategorySelected,
-              transactionType: _selectedType,
-              errorText: _categoryError,
-            ),
-            SizedBox(height: 3.h),
-            DatePickerWidget(
-              selectedDate: _selectedDate,
-              onDateSelected: _onDateSelected,
-            ),
-            SizedBox(height: 3.h),
-            NotesInputWidget(
-              controller: _notesController,
-              onChanged: _onNotesChanged,
-              errorText: _notesError,
-            ),
-            SizedBox(height: 3.h),
-            WalletSelectorWidget(
-              selectedWallet: _selectedWallet,
-              onWalletSelected: _onWalletSelected,
-            ),
-            SizedBox(height: 4.h),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildSaveButton() {
     final theme = Theme.of(context);
+    final isValid = _isFormValid();
     return Container(
       padding: EdgeInsets.all(4.w),
-      child: SizedBox(
-        width: double.infinity,
-        height: 6.h,
-        child: ElevatedButton(
-          onPressed: _isLoading ? null : _saveTransaction,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _isFormValid() && !_isLoading
+      child: TapBounce(
+        onTap: _isLoading ? null : _saveTransaction,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          width: double.infinity,
+          height: 6.h,
+          decoration: BoxDecoration(
+            color: isValid && !_isLoading
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,
-            foregroundColor: theme.colorScheme.onPrimary,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isValid && !_isLoading
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
           ),
-          child: _isLoading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.onPrimary,
+          child: Center(
+            child: _isLoading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                  )
+                : Text(
+                    'Simpan',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onPrimary,
                     ),
                   ),
-                )
-              : Text(
-                  'Simpan',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onPrimary,
-                  ),
-                ),
+          ),
         ),
       ),
     );
@@ -424,7 +514,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
     try {
       final transaction = t_model.Transaction(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.initialTransaction?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         amount: double.parse(_amountController.text.replaceAll('.', '')),
         type: _selectedType == TransactionType.expense ? 'expense' : 'income',
         category: _selectedCategory!,
@@ -433,7 +523,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         wallet: _selectedWallet,
       );
 
-      await _localStorageService.addTransaction(transaction);
+      if (widget.initialTransaction != null) {
+        await _localStorageService.updateTransaction(transaction);
+      } else {
+        await _localStorageService.addTransaction(transaction);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

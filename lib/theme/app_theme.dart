@@ -370,6 +370,13 @@ class AppTheme {
         color: textSecondaryLight,
       ),
     ), dialogTheme: DialogThemeData(backgroundColor: dialogLight),
+    splashFactory: InkSparkle.splashFactory,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 
   /// Dark theme maintaining professional warmth in dark mode
@@ -646,6 +653,13 @@ class AppTheme {
         color: textSecondaryDark,
       ),
     ), dialogTheme: DialogThemeData(backgroundColor: dialogDark),
+    splashFactory: InkSparkle.splashFactory,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 
   /// Helper method to build text theme with Inter font family and JetBrains Mono for data

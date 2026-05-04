@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
-
+import '../../../data/models/transaction_model.dart' as t_model;
+import '../../add_transaction_screen/add_transaction_screen.dart';
 class TransactionDetailModal extends StatelessWidget {
   final Map<String, dynamic> transaction;
   final VoidCallback onDelete;
@@ -157,12 +158,32 @@ class TransactionDetailModal extends StatelessWidget {
                   SizedBox(width: 2.w),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        // Edit feature not available in this version
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Fitur ubah transaksi akan tersedia di versi selanjutnya')),
+
+                        final edited = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddTransactionScreen(
+                              initialTransaction: t_model.Transaction(
+                                id: transaction['id'] as String,
+                                amount:
+                                    (transaction['amount'] as num).toDouble(),
+                                type: transaction['type'] as String,
+                                category: transaction['category'] as String,
+                                date: transaction['date'] as DateTime,
+                                notes: (transaction['notes'] ?? '') as String,
+                                wallet:
+                                    (transaction['wallet'] ?? 'Kas') as String,
+                              ),
+                            ),
+                            fullscreenDialog: true,
+                          ),
                         );
+
+                        if (edited == true) {
+                          onUpdated();
+                        }
                       },
                       icon: CustomIconWidget(
                         iconName: 'edit',
