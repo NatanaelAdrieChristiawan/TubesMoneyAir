@@ -65,8 +65,6 @@
 
 ## 📱 Screenshot
 
-> Anda bisa menambahkan screenshot aplikasi di sini.
-
 | Dashboard | Tambah Transaksi | Laporan | Profil |
 |:---------:|:----------------:|:-------:|:------:|
 | <img src="assets/Screenshot/dashboard.png" width="200" /> | <img src="assets/Screenshot/TambahTransaksi.png" width="200" /> | <img src="assets/Screenshot/Laporan.png" width="200" /> | <img src="assets/Screenshot/Profil.png" width="200" /> |
