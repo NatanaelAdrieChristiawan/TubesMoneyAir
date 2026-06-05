@@ -63,7 +63,7 @@
 
 ---
 
-## 📱 Screenshot
+## 📱 Tampilan
 
 | Dashboard | Tambah Transaksi | Laporan | Profil |
 |:---------:|:----------------:|:-------:|:------:|
